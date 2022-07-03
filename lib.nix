@@ -64,9 +64,8 @@ let
   };
 in {
   readErl =
-    # if usePureFromErl && false then f: fromErl (readFile f)
-    # else
-      f: fromJSON (readFile (runCommand "read-erl"
+    if usePureFromErl then f: fromErl (readFile f)
+    else f: fromJSON (readFile (runCommand "read-erl"
       {
         buildInputs = [ jsone ];
         allowSubstitutes = false;
