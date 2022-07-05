@@ -1,13 +1,14 @@
 # Parser for literal Erlang terms
-{ pkgs ? import <nixpkgs> {}
+{ lib, fetchFromGitHub, runCommand, buildRebar3, erlang }:
+
+{
   # Whether to use the Erlang term parser implemented in Nix or shell
   # out to an Erlang interpreter.
-, usePureFromErl ? true
+  usePureFromErl ? true
 }:
 
 let
   inherit (builtins) substring fromJSON readFile;
-  inherit (pkgs) lib runCommand;
 
   skipWs = s: builtins.elemAt (builtins.match "([[:space:]]|%[^\n]*\n?)*(.*)" s) 1;
   sepBy = { beg ? "", sep, end ? null }: c: s: let
@@ -52,10 +53,10 @@ let
   consult = sepBy { sep = "."; };
   fromErl = s: consult (x: _s: x) (skipWs s);
 
-  jsone = pkgs.beamPackages.buildRebar3 rec {
+  jsone = buildRebar3 rec {
     name = "jsone";
     version = "1.7.0";
-    src = pkgs.fetchFromGitHub {
+    src = fetchFromGitHub {
       owner = "sile";
       repo = name;
       rev = version;
@@ -73,7 +74,7 @@ in {
       }
       # TODO Escape filename
       ''
-      >$out ${pkgs.erlang}/bin/erl -noinput \
+      >$out ${erlang}/bin/erl -noinput \
         -eval '{ok, Terms} = file:consult("${f}"),
 io:put_chars(jsone:encode(Terms)).' \
         -s init stop

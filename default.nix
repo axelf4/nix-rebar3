@@ -3,7 +3,7 @@
 let
   inherit (builtins) head elemAt listToAttrs getAttr hasAttr;
   inherit (pkgs) lib;
-  inherit (import ./lib.nix { inherit pkgs; }) readErl;
+  inherit (pkgs.beamPackages.callPackage ./lib.nix {} {}) readErl;
 
   supportedConfigVsns = [ "1.2.0" ];
 in {
@@ -25,8 +25,9 @@ in {
         name = head x;
         src = elemAt x 1;
         tbl = {
-          pkg = pkgs.beamPackages.fetchHex {
-            pkg = elemAt src 1;
+          pkg = pkgs.beamPackages.buildHex {
+            inherit name;
+            hexPkg = elemAt src 1;
             version = elemAt src 2;
             sha256 = getAttr name hashes;
           };
@@ -36,18 +37,20 @@ in {
          then builtins.getAttr type tbl
          else throw "Unsupported dependency type ${type} for ${name}")
       locks;
-  in lib.trivial.warnIfNot
-    (builtins.elem vsn supportedConfigVsns)
-    "Unsupported lock file. Proceeding anyway..."
-    (pkgs.beamPackages.buildRebar3 {
-      name = pname;
-      inherit version;
-      src = path;
 
-      # REBAR_IGNORE_DEPS = true;
+    rel = lib.trivial.warnIfNot
+      (builtins.elem vsn supportedConfigVsns)
+      "Unsupported lock file. Proceeding anyway..."
+      (pkgs.beamPackages.rebar3Relx {
+        # name = pname;
+        inherit pname version;
+        src = path;
 
-      beamDeps = deps;
+        # REBAR_IGNORE_DEPS = true;
 
-      # releaseType = "escript";
-    });
+        beamDeps = deps;
+
+        releaseType = "escript";
+      });
+  in rel;
 }
