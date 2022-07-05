@@ -1,5 +1,5 @@
 # Parser for literal Erlang terms
-{ lib, fetchFromGitHub, runCommand, buildRebar3, erlang }:
+{ lib, fetchFromGitHub, runCommand, buildHex, erlang }:
 
 {
   # Whether to use the Erlang term parser implemented in Nix or shell
@@ -53,15 +53,10 @@ let
   consult = sepBy { sep = "."; };
   fromErl = s: consult (x: _s: x) (skipWs s);
 
-  jsone = buildRebar3 rec {
+  jsone = buildHex {
     name = "jsone";
     version = "1.7.0";
-    src = fetchFromGitHub {
-      owner = "sile";
-      repo = name;
-      rev = version;
-      sha256 = "gdke3pFslgg+PmDUQCUWYBszml6EAYcfewBvLWhD398=";
-    };
+    sha256 = "o6M3Eu5ryL4Qz6IcfEJaKZ3kxahTP5+THld6bQ6PXb0=";
   };
 in {
   readErl =
