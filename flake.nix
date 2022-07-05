@@ -10,7 +10,7 @@
   in {
     packages.x86_64-linux.hello = nix-rebar3.buildRebar3 {
       path = ./myapp;
-      name = "myapp";
+      pname = "myapp";
       version = "0.1.0";
     };
   };

@@ -35,7 +35,7 @@ let
     x = builtins.head (builtins.match ''([0-9]+).*'' s);
   in c (builtins.fromJSON x) (substring (builtins.stringLength x) (-1) s);
   atom = c: s: let
-    x = builtins.head (builtins.match ''([a-z][A-Za-z0-9@]*).*'' s);
+    x = builtins.head (builtins.match ''([a-z][A-Za-z0-9_@]*).*'' s);
   in c x (substring (builtins.stringLength x) (-1) s);
 
   term = let
@@ -71,6 +71,7 @@ in {
         allowSubstitutes = false;
         preferLocalBuild = true;
       }
+      # TODO Escape filename
       ''
       >$out ${pkgs.erlang}/bin/erl -noinput \
         -eval '{ok, Terms} = file:consult("${f}"),
