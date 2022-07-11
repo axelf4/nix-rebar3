@@ -1,8 +1,9 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
-  inherit (builtins) head elemAt listToAttrs getAttr hasAttr groupBy toString zipAttrsWith;
-  inherit (pkgs) lib beamPackages;
+  inherit (builtins) head elemAt listToAttrs getAttr hasAttr groupBy toString zipAttrsWith concatStringsSep;
+  inherit (pkgs) lib stdenv beamPackages;
+  inherit (lib) mapAttrsToList;
   inherit (beamPackages.callPackage ./lib.nix {} {}) readErl;
 
   buildRebar3' = beamPackages.callPackage ./build-rebar3.nix {};
@@ -22,52 +23,72 @@ in rec {
         (x: head x == "pkg_hash_ext")
         (throw "pkg_hash_ext not found")
         attrs) 1));
-    deps = { "0" = []; } // zipAttrsWith (_lvl: deps: deps) (map
-      (x: let
-        name = head x;
-        src = elemAt x 1;
-        lvl = elemAt x 2;
-        tbl = {
-          pkg = let
-            pkg = elemAt src 1;
-            version = elemAt src 2;
-          in buildRebar3 {
-            pname = pkg;
-            inherit version;
-            path = beamPackages.fetchHex {
-              inherit pkg version;
-              sha256 = getAttr name hashes;
-            };
-            # beamDeps = if hasAttr (toString (lvl + 1)) deps
-            #            then getAttr (toString (lvl + 1)) deps
-            #            else [];
-          };
-          git = buildRebar3' {
-            inherit name;
-            version = "git";
-            src = fetchGit {
-              url = elemAt src 1;
-              rev = elemAt (elemAt src 2) 1;
-            };
-          };
+    deps = listToAttrs (map (x: let
+      name = head x;
+      src = elemAt x 1;
+      _lvl = elemAt x 2;
+      tbl = {
+        pkg = beamPackages.fetchHex {
+          pkg = elemAt src 1;
+          version = elemAt src 2;
+          sha256 = getAttr name hashes;
         };
-        type = head src;
-      in if builtins.hasAttr type tbl
-         then { "${toString lvl}" = builtins.getAttr type tbl; }
-         else throw "Unsupported dependency type ${type} for ${name}")
+        git = fetchGit {
+          url = elemAt src 1;
+          rev = elemAt (elemAt src 2) 1;
+        };
+        path = throw "TODO: path dependency";
+      };
+      type = head src;
+    in if builtins.hasAttr type tbl
+       then { inherit name; value = builtins.getAttr type tbl; }
+       else throw "Unsupported dependency type ${type} for ${name}")
       locks);
+
+    depsDrv = stdenv.mkDerivation {
+      pname = "${pname}-deps";
+      inherit version;
+      src = builtins.filterSource
+        (path: type: let
+          base = baseNameOf path;
+        in if type == "directory" then base == "_checkouts" else base == "rebar.config" || base == "rebar.lock" || base == "rebar.config.script")
+        path;
+      REBAR_OFFLINE = true;
+
+      buildPhase = ''
+        mkdir -p _checkouts
+        ${concatStringsSep "\n" (mapAttrsToList
+          (name: value: ''[[ -d _checkouts/${name} ]] || cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
+          deps)}
+        ${beamPackages.rebar3}/bin/rebar3 compile --deps_only
+        ls
+      '';
+
+      installPhase = ''
+        mv _build $out
+      '';
+    };
 
     rel = lib.trivial.warnIfNot
       (builtins.elem vsn supportedConfigVsns)
       "Unsupported lock file. Proceeding anyway..."
       (beamPackages.rebar3Relx {
-        # name = pname;
         inherit pname version;
         src = path;
 
         # REBAR_IGNORE_DEPS = true;
+        REBAR_OFFLINE = true;
 
-        beamDeps = deps."0";
+        # TODO Lockfiles
+        # profile = "prod";
+
+        preBuild = ''
+          mkdir -p _checkouts
+          ${concatStringsSep "\n" (mapAttrsToList
+            (name: value: ''[[ -d _checkouts/${name} ]] || cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
+            deps)}
+          cp --no-preserve=mode -r ${depsDrv} _build
+        '';
 
         releaseType = "escript";
       });
