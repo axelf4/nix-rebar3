@@ -63,9 +63,8 @@ in {
           deps)}
       '';
 
-      buildPhase = ''HOME=. DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
-
-      installPhase = "mv _build $out";
+      buildPhase = ''HOME=. DEBUG=1 REBAR_BASE_DIR=$out ${rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
+      dontInstall = true;
     };
 
     rel = lib.trivial.warnIfNot (elem vsn supportedConfigVsns)
