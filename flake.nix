@@ -4,5 +4,7 @@
   outputs = { self, nixpkgs }: {
     lib = nixpkgs.lib.genAttrs [ "x86_64-linux" ]
       (system: nixpkgs.legacyPackages.${system}.callPackage ./. {});
+
+    overlay = final: prev: final.callPackage ./. {};
   };
 }
