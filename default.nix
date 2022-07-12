@@ -1,4 +1,4 @@
-{ lib, stdenv, beamPackages, erlang }:
+{ lib, stdenv, beamPackages, erlang, rebar3 }:
 
 let
   inherit (builtins) head elem elemAt listToAttrs getAttr hasAttr concatStringsSep;
@@ -63,7 +63,7 @@ in {
           deps)}
       '';
 
-      buildPhase = ''${beamPackages.rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
+      buildPhase = ''HOME=. DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
 
       installPhase = "mv _build $out";
     };
@@ -74,7 +74,7 @@ in {
         inherit pname version;
         src = root;
 
-        buildInputs = userAttrs.buildInputs or [] ++ [ erlang beamPackages.rebar3 ];
+        buildInputs = userAttrs.buildInputs or [] ++ [ erlang rebar3 ];
 
         REBAR_OFFLINE = true;
 
@@ -90,7 +90,7 @@ in {
 
         buildPhase = ''
           runHook preBuild
-          DEBUG=1 rebar3 as ${profile} ${releaseType}
+          HOME=1 DEBUG=1 rebar3 as ${profile} ${releaseType}
           runHook postBuild
         '';
 
