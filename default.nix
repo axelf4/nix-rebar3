@@ -1,10 +1,8 @@
-{ lib, stdenv, beamPackages }:
+{ lib, stdenv, beamPackages, erlang }:
 
 let
   inherit (builtins) head elem elemAt listToAttrs getAttr hasAttr concatStringsSep;
   inherit (beamPackages.callPackage ./lib.nix {} {}) readErl;
-
-  buildRebar3' = beamPackages.callPackage ./build-rebar3.nix {};
 
   supportedConfigVsns = [ "1.2.0" ];
 in {
@@ -72,9 +70,11 @@ in {
 
     rel = lib.trivial.warnIfNot (elem vsn supportedConfigVsns)
       "Unsupported lock file. Proceeding anyway..."
-      (beamPackages.rebar3Relx (userAttrs // {
-        inherit pname version releaseType profile;
+      (stdenv.mkDerivation (userAttrs // {
+        inherit pname version;
         src = root;
+
+        buildInputs = userAttrs.buildInputs or [] ++ [ erlang beamPackages.rebar3 ];
 
         REBAR_OFFLINE = true;
 
@@ -87,6 +87,24 @@ in {
           cp --no-preserve=mode -r ${depsDrv} _build
           runHook postConfigure
         '';
+
+        buildPhase = ''
+          runHook preBuild
+          DEBUG=1 rebar3 as ${profile} ${releaseType}
+          runHook postBuild
+        '';
+
+        installPhase = ''
+          runHook preInstall
+          dir=${if releaseType == "escriptize" then "bin" else "rel"}
+          # mkdir -p $out
+          cp --preserve=mode -r --no-target-directory _build/${profile}/$dir "$out"
+          runHook postInstall
+        '';
+
+        meta = {
+          inherit (erlang.meta) platforms;
+        } // userAttrs.meta or {};
       }));
   in rel;
 }
