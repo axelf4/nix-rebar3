@@ -63,7 +63,7 @@ in {
           deps)}
       '';
 
-      buildPhase = ''HOME=. DEBUG=1 REBAR_BASE_DIR=$out ${rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
+      buildPhase = ''REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 REBAR_BASE_DIR=$out ${rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
       dontInstall = true;
     };
 
@@ -89,7 +89,7 @@ in {
 
         buildPhase = ''
           runHook preBuild
-          HOME=1 DEBUG=1 rebar3 as ${profile} ${releaseType}
+          REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 rebar3 as ${profile} ${releaseType}
           runHook postBuild
         '';
 
