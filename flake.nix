@@ -1,17 +1,8 @@
 {
-  description = "hejj";
+  description = "Build rebar3 projects in Nix";
 
-  outputs = { self, nixpkgs }: let
-    pkgs = nixpkgs.legacyPackages.x86_64-linux;
-    nix-rebar3 = import ./. {
-      inherit pkgs;
-    };
-    # x = nix-rebar3.readErl ./term.erl;
-  in {
-    packages.x86_64-linux.hello = nix-rebar3.buildRebar3 {
-      path = ./myapp;
-      pname = "myapp";
-      version = "0.1.0";
-    };
+  outputs = { self, nixpkgs }: {
+    lib = nixpkgs.lib.genAttrs [ "x86_64-linux" ]
+      (system: nixpkgs.legacyPackages.${system}.callPackage ./. {});
   };
 }

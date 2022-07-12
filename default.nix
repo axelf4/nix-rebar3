@@ -1,19 +1,21 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ lib, stdenv, beamPackages }:
 
 let
-  inherit (builtins) head elemAt listToAttrs getAttr hasAttr groupBy toString zipAttrsWith concatStringsSep;
-  inherit (pkgs) lib stdenv beamPackages;
-  inherit (lib) mapAttrsToList;
+  inherit (builtins) head elem elemAt listToAttrs getAttr hasAttr concatStringsSep;
   inherit (beamPackages.callPackage ./lib.nix {} {}) readErl;
 
   buildRebar3' = beamPackages.callPackage ./build-rebar3.nix {};
 
   supportedConfigVsns = [ "1.2.0" ];
-in rec {
+in {
   buildRebar3 = {
-    path, pname, version
-  }: let
-    terms = readErl (path + "/rebar.lock");
+    root,
+      pname,
+      version,
+      releaseType,
+      profile ? "default"
+  }@userAttrs: let
+    terms = readErl (root + "/rebar.lock");
     vsn = head (head terms);
     locks = elemAt (head terms) 1;
     attrs = elemAt terms 1;
@@ -26,7 +28,6 @@ in rec {
     deps = listToAttrs (map (x: let
       name = head x;
       src = elemAt x 1;
-      _lvl = elemAt x 2;
       tbl = {
         pkg = beamPackages.fetchHex {
           pkg = elemAt src 1;
@@ -37,11 +38,11 @@ in rec {
           url = elemAt src 1;
           rev = elemAt (elemAt src 2) 1;
         };
-        path = throw "TODO: path dependency";
+        path = root + "/${elemAt src 1}";
       };
       type = head src;
-    in if builtins.hasAttr type tbl
-       then { inherit name; value = builtins.getAttr type tbl; }
+    in if hasAttr type tbl
+       then { inherit name; value = getAttr type tbl; }
        else throw "Unsupported dependency type ${type} for ${name}")
       locks);
 
@@ -51,46 +52,41 @@ in rec {
       src = builtins.filterSource
         (path: type: let
           base = baseNameOf path;
-        in if type == "directory" then base == "_checkouts" else base == "rebar.config" || base == "rebar.lock" || base == "rebar.config.script")
-        path;
+        in if type == "directory" then base == "_checkouts"
+           else base == "rebar.config" || base == "rebar.lock" || base == "rebar.config.script")
+        root;
+
       REBAR_OFFLINE = true;
 
-      buildPhase = ''
+      configurePhase = ''
         mkdir -p _checkouts
-        ${concatStringsSep "\n" (mapAttrsToList
+        ${concatStringsSep "\n" (lib.mapAttrsToList
           (name: value: ''[[ -d _checkouts/${name} ]] || cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
           deps)}
-        ${beamPackages.rebar3}/bin/rebar3 compile --deps_only
-        ls
       '';
 
-      installPhase = ''
-        mv _build $out
-      '';
+      buildPhase = ''${beamPackages.rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
+
+      installPhase = "mv _build $out";
     };
 
-    rel = lib.trivial.warnIfNot
-      (builtins.elem vsn supportedConfigVsns)
+    rel = lib.trivial.warnIfNot (elem vsn supportedConfigVsns)
       "Unsupported lock file. Proceeding anyway..."
-      (beamPackages.rebar3Relx {
-        inherit pname version;
-        src = path;
+      (beamPackages.rebar3Relx (userAttrs // {
+        inherit pname version releaseType profile;
+        src = root;
 
-        # REBAR_IGNORE_DEPS = true;
         REBAR_OFFLINE = true;
 
-        # TODO Lockfiles
-        # profile = "prod";
-
-        preBuild = ''
+        configurePhase = ''
+          runHook preConfigure
           mkdir -p _checkouts
-          ${concatStringsSep "\n" (mapAttrsToList
+          ${concatStringsSep "\n" (lib.mapAttrsToList
             (name: value: ''[[ -d _checkouts/${name} ]] || cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
             deps)}
           cp --no-preserve=mode -r ${depsDrv} _build
+          runHook postConfigure
         '';
-
-        releaseType = "escript";
-      });
+      }));
   in rel;
 }

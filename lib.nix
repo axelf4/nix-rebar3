@@ -67,13 +67,11 @@ in {
         allowSubstitutes = false;
         preferLocalBuild = true;
       }
-      # TODO Escape filename
+      # TODO Escape filename and encode tuples as lists not objects
       ''
       >$out ${erlang}/bin/erl -noinput \
         -eval '{ok, Terms} = file:consult("${f}"),
 io:put_chars(jsone:encode(Terms)).' \
         -s init stop
     ''));
-  
-  x = fromErl ''[ "hej" , <<"gey">>, 42, {3, "he", 5}, 4, atom ]. 3. 4 . '';
 }

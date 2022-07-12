@@ -1,0 +1,43 @@
+{
+  "nodes": {
+    "nix-rebar3": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 0,
+        "narHash": "sha256-g1QRpq8Kogcd/HPNDf59Sl1Rp6NJe8Cp0VzuxDUK2rM=",
+        "path": "/nix/store/n0ff5lw6xfs67y8zbrylrgqd0kd304py-source",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/n0ff5lw6xfs67y8zbrylrgqd0kd304py-source",
+        "type": "path"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1657532632,
+        "narHash": "sha256-uEwe1CAQxb0eOWIwxQ3zpMs/llshirlrCXZQz6vkYQU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "85deee6d6c8127d360096a5caa0aeb876b976496",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nix-rebar3": "nix-rebar3",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
