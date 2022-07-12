@@ -59,7 +59,7 @@ in {
       configurePhase = ''
         mkdir -p _checkouts
         ${concatStringsSep "\n" (lib.mapAttrsToList
-          (name: value: ''[[ -d _checkouts/${name} ]] || cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
+          (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
           deps)}
       '';
 
@@ -82,7 +82,7 @@ in {
           runHook preConfigure
           mkdir -p _checkouts
           ${concatStringsSep "\n" (lib.mapAttrsToList
-            (name: value: ''[[ -d _checkouts/${name} ]] || cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
+            (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
             deps)}
           cp --no-preserve=mode -r ${depsDrv} _build
           runHook postConfigure
