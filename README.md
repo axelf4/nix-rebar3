@@ -38,7 +38,7 @@ missing plugins during sandboxed builds. When using
 `rebar3WithPlugins`, in addition to manually specified plugins, a
 custom [`rebar_ignore_deps`][rebar_ignore_deps.erl] is always
 included, that, when the environment variable `REBAR_IGNORE_DEPS` is
-non-empty, override the `install_deps` rebar3 provider to instead
+non-empty, overrides the `install_deps` rebar3 provider to instead
 proceed with the build as if there were no declared dependencies.
 
 There are choices that can be made when packaging rebar3 projects with

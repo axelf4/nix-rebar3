@@ -51,61 +51,69 @@ in {
     depsDrv = stdenv.mkDerivation {
       pname = "${pname}-deps";
       inherit version;
-      src = builtins.filterSource
-        (path: type: let
+
+      src = builtins.path {
+        path = root;
+        name = "source";
+        filter = path: type: let
           base = baseNameOf path;
         in if type == "directory" then base == "_checkouts"
-           else base == "rebar.config" || base == "rebar.lock" || base == "rebar.config.script")
-        root;
+           else base == "rebar.config" || base == "rebar.config.script" || base == "rebar.lock";
+      };
 
       REBAR_OFFLINE = true;
 
       configurePhase = ''
+        # Canonicalize path since e.g. Parsetools will output absolute paths
+        mv --no-clobber --no-target-directory $PWD ../source
+
         mkdir -p _checkouts
         ${concatStringsSep "\n" (lib.mapAttrsToList
           (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
           deps)}
       '';
 
-      buildPhase = ''REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 REBAR_BASE_DIR=$out ${rebar3}/bin/rebar3 as ${profile} compile --deps_only'';
-      dontInstall = true;
+      buildPhase = ''
+        REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only
+      '';
+      installPhase = ''mv _build $out'';
     };
 
-    rel = stdenv.mkDerivation (attrs // {
-        inherit pname version;
-        src = root;
+  in stdenv.mkDerivation (attrs // {
+    inherit pname version;
+    src = root;
 
-        buildInputs = attrs.buildInputs or [] ++ [ erlang rebar3 ];
+    buildInputs = attrs.buildInputs or [] ++ [ erlang rebar3 ];
 
-        REBAR_OFFLINE = true;
+    REBAR_OFFLINE = true;
 
-        configurePhase = ''
-          runHook preConfigure
-          mkdir -p _checkouts
-          ${concatStringsSep "\n" (lib.mapAttrsToList
-            (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
-            deps)}
-          cp --no-preserve=mode -r ${depsDrv} _build
-          runHook postConfigure
-        '';
+    configurePhase = attrs.configurePhase or ''
+      mv --no-clobber --no-target-directory $PWD ../source
 
-        buildPhase = ''
-          runHook preBuild
-          REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 rebar3 as ${profile} ${releaseType}
-          runHook postBuild
-        '';
+      runHook preConfigure
+      mkdir -p _checkouts
+      ${concatStringsSep "\n" (lib.mapAttrsToList
+        (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
+        deps)}
+      cp --no-preserve=mode -r ${depsDrv} _build
+      runHook postConfigure
+    '';
 
-        installPhase = ''
-          runHook preInstall
-          dir=${if releaseType == "escriptize" then "bin" else "rel"}
-          # mkdir -p $out
-          cp --preserve=mode -r --no-target-directory _build/${profile}/$dir "$out"
-          runHook postInstall
-        '';
+    buildPhase = attrs.buildPhase or ''
+      runHook preBuild
+      REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 rebar3 as ${profile} ${releaseType}
+      runHook postBuild
+    '';
 
-        meta = {
-          inherit (erlang.meta) platforms;
-        } // attrs.meta or {};
-      });
-  in rel;
+    installPhase = attrs.installPhase or ''
+      runHook preInstall
+      dir=${if releaseType == "escriptize" then "bin" else "rel"}
+      cp -r --no-target-directory _build/${profile}/$dir $out
+      runHook postInstall
+    '';
+
+    meta = {
+      inherit (erlang.meta) platforms;
+    } // attrs.meta or {};
+  });
 }
