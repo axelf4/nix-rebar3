@@ -63,10 +63,13 @@ in {
 
       REBAR_OFFLINE = true;
 
-      configurePhase = ''
+      postUnpack = ''
         # Canonicalize path since e.g. Parsetools will output absolute paths
-        mv --no-clobber --no-target-directory $PWD ../source
+        mv --no-clobber --no-target-directory "$sourceRoot" source
+        sourceRoot=source
+      '';
 
+      configurePhase = ''
         mkdir -p _checkouts
         ${concatStringsSep "\n" (lib.mapAttrsToList
           (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
@@ -74,22 +77,24 @@ in {
       '';
 
       buildPhase = ''
-        REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only
+        REBAR_CACHE_DIR=.rebar-cache DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only
       '';
       installPhase = ''mv _build $out'';
     };
 
   in stdenv.mkDerivation (attrs // {
-    inherit pname version;
     src = root;
 
-    buildInputs = attrs.buildInputs or [] ++ [ erlang rebar3 ];
+    buildInputs = [ erlang rebar3 ] ++ attrs.buildInputs or [];
 
     REBAR_OFFLINE = true;
 
-    configurePhase = attrs.configurePhase or ''
-      mv --no-clobber --no-target-directory $PWD ../source
+    postUnpack = attrs.postUnpack or ''
+      mv --no-clobber --no-target-directory "$sourceRoot" source
+      sourceRoot=source
+    '';
 
+    configurePhase = attrs.configurePhase or ''
       runHook preConfigure
       mkdir -p _checkouts
       ${concatStringsSep "\n" (lib.mapAttrsToList
@@ -101,14 +106,23 @@ in {
 
     buildPhase = attrs.buildPhase or ''
       runHook preBuild
-      REBAR_CACHE_DIR=$PWD/.rebar-cache DEBUG=1 rebar3 as ${profile} ${releaseType}
+      REBAR_CACHE_DIR=.rebar-cache DEBUG=1 rebar3 as ${profile} ${releaseType}
       runHook postBuild
     '';
 
     installPhase = attrs.installPhase or ''
       runHook preInstall
       dir=${if releaseType == "escriptize" then "bin" else "rel"}
-      cp -r --no-target-directory _build/${profile}/$dir $out
+      mkdir -p $out/bin
+      cp -r _build/${profile}/$dir $out
+      ${lib.optionalString (releaseType == "release")
+        ''
+          find $out/rel/*/bin -type f -executable -exec ln -st $out/bin {} +
+          # Remove references to erlang to reduce closure size
+          for f in $out/rel/*/erts-*/bin/{erl,start}; do
+            substituteInPlace "$f" --replace ${erlang}/lib/erlang "''${f%/erts-*/bin/*}"
+          done
+        ''}
       runHook postInstall
     '';
 
