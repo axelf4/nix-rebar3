@@ -1,4 +1,4 @@
-{ lib, stdenv, beamPackages, erlang, rebar3 }:
+{ lib, stdenv, writeText, beamPackages, erlang, rebar3 }:
 
 let
   inherit (builtins) head elem elemAt listToAttrs getAttr hasAttr concatStringsSep;
@@ -10,7 +10,7 @@ in {
     root,
       pname,
       version,
-      releaseType,
+      releaseType ? "app",
       profile ? "default",
       checkouts ? {}
   }@attrs: let
@@ -89,6 +89,11 @@ in {
 
     REBAR_OFFLINE = true;
 
+    setupHook = attrs.setupHook or
+      (if releaseType == "app"
+       then writeText "setupHook.sh" ''addToSearchPath ERL_LIBS $1/lib/erlang/lib''
+       else null);
+
     postUnpack = attrs.postUnpack or ''
       mv --no-clobber --no-target-directory "$sourceRoot" source
       sourceRoot=source
@@ -100,28 +105,42 @@ in {
       ${concatStringsSep "\n" (lib.mapAttrsToList
         (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
         deps)}
-      cp --no-preserve=mode -r ${depsDrv} _build
+      cp --no-preserve=mode -r --no-target-directory ${depsDrv} _build
       runHook postConfigure
     '';
 
     buildPhase = attrs.buildPhase or ''
       runHook preBuild
-      REBAR_CACHE_DIR=.rebar-cache DEBUG=1 rebar3 as ${profile} ${releaseType}
+      REBAR_CACHE_DIR=.rebar-cache DEBUG=1 rebar3 as ${profile} ${if releaseType == "app" then "compile" else releaseType}
       runHook postBuild
     '';
 
     installPhase = attrs.installPhase or ''
       runHook preInstall
-      dir=${if releaseType == "escriptize" then "bin" else "rel"}
-      mkdir -p $out/bin
-      cp -r _build/${profile}/$dir $out
-      ${lib.optionalString (releaseType == "release")
-        ''
-          find $out/rel/*/bin -type f -executable -exec ln -st $out/bin {} +
-          # Remove references to erlang to reduce closure size
-          for f in $out/rel/*/erts-*/bin/{erl,start}; do
-            substituteInPlace "$f" --replace ${erlang}/lib/erlang "''${f%/erts-*/bin/*}"
+      path="$(TERM=dumb rebar3 as ${profile} path --separator=: \
+        --${if releaseType == "app" then "ebin" else if releaseType == "release" then "rel" else "bin"})"
+      path="''${path#===> No entry for profile * in config.
+      }"
+      ${if releaseType == "app"
+        then ''
+          mkdir -p $out/lib/erlang/lib
+          IFS=: read -ra ebins <<<"$path"
+          for ebin in "''${ebins[@]}"; do
+            appdir="$(dirname "$ebin")"
+            find "$appdir" -xtype l -delete # Remove broken symlinks
+            cp --dereference -r "$appdir" $out/lib/erlang/lib
           done
+        '' else ''
+          mkdir -p $out/bin
+          cp -r $path $out
+          ${lib.optionalString (releaseType == "release")
+            ''
+              find $out/rel/*/bin -type f -executable -exec ln -st $out/bin {} +
+              # Remove references to erlang to reduce closure size
+              for f in $out/rel/*/erts-*/bin/{erl,start}; do
+                substituteInPlace "$f" --replace ${erlang}/lib/erlang "''${f%/erts-*/bin/*}"
+              done
+            ''}
         ''}
       runHook postInstall
     '';
