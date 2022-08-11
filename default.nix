@@ -122,7 +122,7 @@ in {
       runHook preInstall
       path="$(TERM=dumb rebar3 as ${profile} path --separator=: \
         --${if releaseType == "app" then "ebin" else if releaseType == "release" then "rel" else "bin"})"
-      path="''${path#===> No entry for profile * in config.
+      path="''${path##===> *
       }"
       ${if releaseType == "app"
         then ''
