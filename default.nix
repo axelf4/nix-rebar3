@@ -12,7 +12,8 @@ in {
       version,
       releaseType ? "app",
       profile ? "default",
-      checkouts ? {}
+      checkouts ? {},
+      singleStep ? false
   }@attrs: let
     deps = let
       terms = readErl (root + "/rebar.lock");
@@ -105,7 +106,8 @@ in {
       ${concatStringsSep "\n" (lib.mapAttrsToList
         (name: value: ''cp --no-preserve=mode -r "${value}" _checkouts/${name}'')
         deps)}
-      cp --no-preserve=mode -r --no-target-directory ${depsDrv} _build
+      ${lib.optionalString (!singleStep)
+        ''cp --no-preserve=mode -r --no-target-directory ${depsDrv} _build''}
       runHook postConfigure
     '';
 
