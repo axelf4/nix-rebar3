@@ -83,7 +83,8 @@ in {
       installPhase = ''mv _build $out'';
     };
 
-  in stdenv.mkDerivation (attrs // {
+    specialParams = [ "releaseType" "profile" "checkouts" "singleStep" ];
+  in stdenv.mkDerivation (removeAttrs attrs specialParams // {
     src = root;
 
     buildInputs = [ erlang rebar3 ] ++ attrs.buildInputs or [];
