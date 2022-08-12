@@ -62,8 +62,8 @@ in {
            else base == "rebar.config" || base == "rebar.config.script" || base == "rebar.lock";
       };
 
-      REBAR_OFFLINE = true;
-
+      # OTP 25.1/26.0 will make this obsolete with erlang/otp#5965
+      # being merged, which makes Parsetools respect +deterministic.
       postUnpack = ''
         # Canonicalize path since e.g. Parsetools will output absolute paths
         mv --no-clobber --no-target-directory "$sourceRoot" source
@@ -78,7 +78,8 @@ in {
       '';
 
       buildPhase = ''
-        REBAR_CACHE_DIR=.rebar-cache DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only
+        export ERL_COMPILER_OPTIONS=[deterministic]
+        REBAR_CACHE_DIR=.rebar-cache REBAR_OFFLINE=1 DEBUG=1 ${rebar3}/bin/rebar3 as ${profile} compile --deps_only
       '';
       installPhase = ''mv _build $out'';
     };
@@ -88,8 +89,6 @@ in {
     src = root;
 
     buildInputs = [ erlang rebar3 ] ++ attrs.buildInputs or [];
-
-    REBAR_OFFLINE = true;
 
     setupHook = attrs.setupHook or
       (if releaseType == "app"
@@ -114,7 +113,8 @@ in {
 
     buildPhase = attrs.buildPhase or ''
       runHook preBuild
-      REBAR_CACHE_DIR=.rebar-cache DEBUG=1 rebar3 as ${profile} ${if releaseType == "app" then "compile" else releaseType}
+      export ERL_COMPILER_OPTIONS=[deterministic]
+      REBAR_CACHE_DIR=.rebar-cache REBAR_OFFLINE=1 DEBUG=1 rebar3 as ${profile} ${if releaseType == "app" then "compile" else releaseType}
       runHook postBuild
     '';
 
