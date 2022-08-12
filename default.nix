@@ -1,8 +1,8 @@
-{ lib, stdenv, writeText, beamPackages, erlang, rebar3 }:
+{ lib, stdenv, callPackage, writeText, fetchHex, erlang, rebar3 }:
 
 let
   inherit (builtins) head elem elemAt listToAttrs getAttr hasAttr concatStringsSep;
-  inherit (beamPackages.callPackage ./lib.nix {} {}) readErl;
+  inherit (callPackage ./lib.nix {}) readErl;
 
   supportedConfigVsns = [ "1.2.0" ];
 in {
@@ -32,7 +32,7 @@ in {
         name = head x;
         src = elemAt x 1;
         tbl = {
-          pkg = beamPackages.fetchHex {
+          pkg = fetchHex {
             pkg = elemAt src 1;
             version = elemAt src 2;
             sha256 = getAttr name hashes;

@@ -1,11 +1,5 @@
 # Parser for literal Erlang terms
-{ lib, fetchFromGitHub, runCommand, buildHex, erlang }:
-
-{
-  # Whether to use the Erlang term parser implemented in Nix or shell
-  # out to an Erlang interpreter.
-  usePureFromErl ? true
-}:
+{ lib }:
 
 let
   inherit (builtins) head match stringLength substring fromJSON readFile;
@@ -26,10 +20,9 @@ let
   list = sepBy { beg = "["; sep = ","; end = "]"; };
   tuple = sepBy { beg = "{"; sep = ","; end = "}"; };
 
-  parseString = isBin: s: c: let
+  string = isBin: s: c: let
     x = head (match ''${if isBin then "<<" else ""}("(\\"|[^"])*").*'' s);
-  in c (substring (stringLength x + (if isBin then 4 else 0)) (-1) s)
-    (fromJSON x);
+  in c (substring (stringLength x + (if isBin then 4 else 0)) (-1) s) (fromJSON x);
 
   number = s: c: let
     x = head (match ''([0-9]+).*'' s);
@@ -37,11 +30,14 @@ let
   atom = s: c: let
     x = head (match ''([a-z][A-Za-z0-9_@]*).*'' s);
   in c (substring (stringLength x) (-1) s) x;
+  qatom = s: c: let
+    x = head (match "'([^']*)'.*" s);
+  in c (substring (stringLength x + 2) (-1) s) x;
 
   term = let
     tbl = {
-      "[" = list; "{" = tuple; "\"" = parseString false; "<" = parseString true;
-      "'" = throw "TODO: quoted atoms";
+      "[" = list; "{" = tuple; "\"" = string false; "<" = string true;
+      "'" = qatom;
       "0" = number; "1" = number; "2" = number; "3" = number; "4" = number;
       "5" = number; "6" = number; "7" = number; "8" = number; "9" = number;
     };
@@ -49,28 +45,7 @@ let
     ch = substring 0 1 s;
   in (if builtins.hasAttr ch tbl then builtins.getAttr ch tbl else atom) s;
 
-  consult = sepBy { sep = "."; };
-  fromErl = s: consult (skipWs s) (_s: x: x);
-
-  jsone = buildHex {
-    name = "jsone";
-    version = "1.7.0";
-    sha256 = "o6M3Eu5ryL4Qz6IcfEJaKZ3kxahTP5+THld6bQ6PXb0=";
-  };
+  fromErl = s: sepBy { sep = "."; } (skipWs s) (_s: x: x);
 in {
-  readErl =
-    if usePureFromErl then f: fromErl (readFile f)
-    else f: fromJSON (readFile (runCommand "read-erl"
-      {
-        buildInputs = [ jsone ];
-        allowSubstitutes = false;
-        preferLocalBuild = true;
-      }
-      # TODO Escape filename and encode tuples as lists not objects
-      ''
-      >$out ${erlang}/bin/erl -noinput \
-        -eval '{ok, Terms} = file:consult("${f}"),
-io:put_chars(jsone:encode(Terms)).' \
-        -s init stop
-    ''));
+  readErl = f: fromErl (readFile f);
 }
