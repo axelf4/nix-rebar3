@@ -121,7 +121,10 @@ in {
     installPhase = attrs.installPhase or ''
       runHook preInstall
       path="$(TERM=dumb rebar3 as ${profile} path --separator=: \
-        --${if releaseType == "app" then "ebin" else if releaseType == "release" then "rel" else "bin"})"
+        --${if releaseType == "app" then "ebin"
+            else if releaseType == "release" then "rel"
+            else if releaseType == "escriptize" then "bin"
+            else throw "The argument 'releaseType' has to be one of 'app', 'release' or 'escriptize'"})"
       path="''${path##===> *
       }"
       ${if releaseType == "app"

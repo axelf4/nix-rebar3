@@ -15,7 +15,7 @@ let
               in (if s'' == "" then c' else f) s'' acc'
          else c' s' acc');
     s' = skipWs (substring (stringLength beg) (-1) s);
-  in (if end != "" -> !lib.hasPrefix end s' then f else c') s' [];
+  in (if end != "" && lib.hasPrefix end s' then c' else f) s' [];
 
   list = sepBy { beg = "["; sep = ","; end = "]"; };
   tuple = sepBy { beg = "{"; sep = ","; end = "}"; };
