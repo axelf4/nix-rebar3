@@ -32,7 +32,7 @@ The parameters of `buildRebar3` are:
 | `releaseType` | One of: `app` to build OTP applications; `release` to assemble relx releases; or `escriptize` to generate an escript executable. (Default: `app`) |
 | `profile` | The profile to run rebar3 tasks in. (Default: `default`) |
 | `checkouts` | Attribute set where the keys are dependency names and values are paths to their sources.<br />This is for overriding dependencies or providing the transitive closure of dependencies such as plugins or those not in the `default` profile, e.g. test dependencies. The latter is made necessary by such dependencies not being stored in the rebar3 lock file. (Default: `{}`)  |
-| `singleStep` | Whether to compile the dependencies first in an intermediate derivation, in order to increase the incrementality of builds. (Default: `true`) |
+| `singleStep` | Whether to skip compiling the dependencies in an intermediate derivation first. Enabling reduces the incrementality of builds. (Default: `false`) |
 
 All other arguments are passed through to the resulting `stdenv.mkDerivation` call.
 
