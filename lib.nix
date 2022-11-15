@@ -44,8 +44,8 @@ let
   in s: let
     ch = substring 0 1 s;
   in (if builtins.hasAttr ch tbl then builtins.getAttr ch tbl else atom) s;
-
+in rec {
   fromErl = s: sepBy { sep = "."; } (skipWs s) (_s: x: x);
-in {
+
   readErl = f: fromErl (readFile f);
 }

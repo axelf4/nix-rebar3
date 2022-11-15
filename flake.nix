@@ -7,7 +7,12 @@
     pkgs = nixpkgs.legacyPackages.${system};
   in {
     lib = pkgs.callPackage ./. {};
+
+    checks = import ./tests.nix {
+      inherit pkgs;
+      inherit (flake-utils.lib) check-utils;
+    };
   }) // {
-    overlay = final: prev: final.callPackage ./. {};
+    overlays.default = final: prev: final.callPackage ./. {};
   };
 }
