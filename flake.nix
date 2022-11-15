@@ -7,10 +7,6 @@
     pkgs = nixpkgs.legacyPackages.${system};
   in {
     lib = pkgs.callPackage ./. {};
-
-    packages = {
-      rebar3_path_deps = pkgs.beamPackages.callPackage ./rebar3_path_deps.nix {};
-    };
   }) // {
     overlay = final: prev: final.callPackage ./. {};
   };
