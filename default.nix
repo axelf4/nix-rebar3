@@ -13,7 +13,8 @@ in {
       releaseType ? "app",
       profile ? "default",
       checkouts ? {},
-      singleStep ? false
+      singleStep ? false,
+      ...
   }@attrs: let
     deps = let
       terms = readErl (root + "/rebar.lock");
