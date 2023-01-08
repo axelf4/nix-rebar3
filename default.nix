@@ -144,8 +144,10 @@ in {
             ''
               find $out/rel/*/bin -type f -executable -exec ln -st $out/bin {} +
               # Remove references to erlang to reduce closure size
-              for f in $out/rel/*/erts-*/bin/{erl,start}; do
-                substituteInPlace "$f" --replace ${erlang}/lib/erlang "''${f%/erts-*/bin/*}"
+              for f in $out/rel/*/erts-*/bin/${if
+                # Newer versions of relx use dyn_erl instead of the erl shell script
+                (lib.versionAtLeast rebar3.version "3.19.0") then "start" else "{erl,start}"}; do
+                 substituteInPlace "$f" --replace ${erlang}/lib/erlang "''${f%/erts-*/bin/*}"
               done
             ''}
         ''}
